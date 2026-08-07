@@ -1,0 +1,1724 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gitとバックアップの手引き — 非エンジニアのための記録の作り方</title>
+<meta name="description" content="「公開されるのは困る。でも消えるのはもっと困る」——その両方を満たす仕組みを、つまずく順に解説。導入から日々の運用、AIへの頼み方まで全14章。">
+
+<!-- SNS・LINEに貼ったときのカード表示用。
+     公開先が決まったら og:url を実際のURLに書き換えてください。 -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="Gitとバックアップの手引き — 非エンジニアのための記録の作り方">
+<meta property="og:description" content="「公開されるのは困る。でも消えるのはもっと困る」——その両方を満たす仕組みを、つまずく順に解説。導入から日々の運用、AIへの頼み方まで全14章。">
+<meta property="og:locale" content="ja_JP">
+<!-- <meta property="og:url" content="https://例.github.io/git-guide/"> -->
+<meta name="twitter:card" content="summary">
+
+<style>
+  /* 最小限のリセット（配布時は自前で持つ必要があるため） */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img, svg { max-width: 100%; }
+</style>
+</head>
+<body>
+<style>
+  /* ============================================================
+     トークン定義 — 診療録／台帳の視覚言語
+     紙: 冷たい淡グレーグリーン / 墨: 緑寄りの黒 / 指標: 深い藍緑
+     差分の緑赤は「意味色」としてアクセントから分離する
+     ============================================================ */
+  :root {
+    --paper:      #EDF0EF;
+    --paper-2:    #E3E8E6;
+    --panel:      #F6F8F7;
+    --ink:        #16201E;
+    --ink-2:      #4A5754;
+    --ink-3:      #6F7C79;
+    --rule:       #C9D2CF;
+    --rule-soft:  #DBE2E0;
+    --accent:     #0E5F56;
+    --accent-2:   #0A4740;
+    --add:        #2E6B43;
+    --add-bg:     #E2EDE5;
+    --del:        #9B3226;
+    --del-bg:     #F3E3E0;
+    --stamp:      #B0442F;
+    --code-bg:    #E7ECEA;
+
+    --f-display: "Hiragino Mincho ProN", "HiraMinProN-W3", "Yu Mincho", "YuMincho", "Noto Serif JP", "Songti SC", serif;
+    --f-body:    "Hiragino Sans", "HiraginoSans-W3", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+    --f-mono:    ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Courier New", monospace;
+
+    --measure: 66ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #121817;
+      --paper-2:    #0D1211;
+      --panel:      #1A2221;
+      --ink:        #E4EAE8;
+      --ink-2:      #A3B0AD;
+      --ink-3:      #7C8986;
+      --rule:       #2C3836;
+      --rule-soft:  #222C2B;
+      --accent:     #57B8AA;
+      --accent-2:   #7FCFC2;
+      --add:        #74C08D;
+      --add-bg:     #1A2A20;
+      --del:        #E08B7C;
+      --del-bg:     #2C1D1A;
+      --stamp:      #E0866F;
+      --code-bg:    #1D2625;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #121817;
+    --paper-2:    #0D1211;
+    --panel:      #1A2221;
+    --ink:        #E4EAE8;
+    --ink-2:      #A3B0AD;
+    --ink-3:      #7C8986;
+    --rule:       #2C3836;
+    --rule-soft:  #222C2B;
+    --accent:     #57B8AA;
+    --accent-2:   #7FCFC2;
+    --add:        #74C08D;
+    --add-bg:     #1A2A20;
+    --del:        #E08B7C;
+    --del-bg:     #2C1D1A;
+    --stamp:      #E0866F;
+    --code-bg:    #1D2625;
+  }
+
+  :root[data-theme="light"] {
+    --paper:      #EDF0EF;
+    --paper-2:    #E3E8E6;
+    --panel:      #F6F8F7;
+    --ink:        #16201E;
+    --ink-2:      #4A5754;
+    --ink-3:      #6F7C79;
+    --rule:       #C9D2CF;
+    --rule-soft:  #DBE2E0;
+    --accent:     #0E5F56;
+    --accent-2:   #0A4740;
+    --add:        #2E6B43;
+    --add-bg:     #E2EDE5;
+    --del:        #9B3226;
+    --del-bg:     #F3E3E0;
+    --stamp:      #B0442F;
+    --code-bg:    #E7ECEA;
+  }
+
+  /* ---------- 土台 ---------- */
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16.5px;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--accent-2); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- ページ骨格 ---------- */
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(18px, 4vw, 48px) 120px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  @media (min-width: 1000px) {
+    .wrap {
+      grid-template-columns: 232px minmax(0, 1fr);
+      column-gap: clamp(40px, 5vw, 76px);
+      align-items: start;
+    }
+    .masthead { grid-column: 1 / -1; }
+  }
+
+  /* ---------- 題字 ---------- */
+  .masthead {
+    padding: clamp(52px, 9vw, 104px) 0 clamp(32px, 5vw, 52px);
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 22px;
+  }
+  .masthead h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(31px, 5.6vw, 55px);
+    line-height: 1.24;
+    letter-spacing: 0.005em;
+    margin: 0 0 24px;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  .standfirst {
+    max-width: var(--measure);
+    font-size: 17px;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  .masthead-meta {
+    margin-top: 34px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    letter-spacing: 0.03em;
+  }
+  .masthead-meta b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- 目次 ---------- */
+  .toc { padding-top: 40px; }
+  @media (min-width: 1000px) {
+    .toc { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; padding-bottom: 30px; }
+  }
+  .toc-title {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .toc a {
+    display: grid;
+    grid-template-columns: 2.4em 1fr;
+    gap: 4px;
+    padding: 5px 8px 5px 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    transition: color .15s, border-color .15s;
+  }
+  .toc a .n { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .toc a:hover { color: var(--ink); border-left-color: var(--rule); }
+  .toc a.on { color: var(--accent); border-left-color: var(--accent); }
+  .toc a.on .n { color: var(--accent); }
+
+  .toc details { margin-bottom: 4px; }
+  .toc summary {
+    cursor: pointer;
+    font-family: var(--f-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 12px 0;
+  }
+  @media (min-width: 1000px) {
+    .toc summary { display: none; }
+    .toc details[open] > ol, .toc details > ol { display: flex; }
+  }
+
+  /* ---------- 本文 ---------- */
+  main { padding-top: 20px; min-width: 0; }
+
+  section.chapter {
+    padding: clamp(40px, 6vw, 66px) 0;
+    border-bottom: 1px solid var(--rule);
+    scroll-margin-top: 20px;
+  }
+  section.chapter:last-of-type { border-bottom: none; }
+
+  .ch-head { display: grid; grid-template-columns: 3.2em 1fr; gap: 6px; align-items: baseline; margin-bottom: 26px; }
+  .ch-num {
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.55em;
+  }
+  .ch-head h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(23px, 3.4vw, 32px);
+    line-height: 1.38;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: 0.005em;
+  }
+  .ch-body { max-width: var(--measure); }
+  @media (min-width: 1000px) { .ch-body { margin-left: 3.2em; } }
+
+  .ch-body > * + * { margin-top: 1.15em; }
+  .ch-body p { margin: 0; }
+  .ch-body h3 {
+    font-family: var(--f-body);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 2.2em 0 0;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--ink);
+  }
+  .ch-body h4 {
+    font-family: var(--f-body);
+    font-size: 15px;
+    font-weight: 700;
+    margin: 1.7em 0 0;
+    color: var(--ink);
+  }
+  .ch-body ul, .ch-body ol { margin: 0; padding-left: 1.35em; display: flex; flex-direction: column; gap: 8px; }
+  .ch-body li { padding-left: 2px; }
+  .ch-body li::marker { color: var(--accent); }
+  strong { font-weight: 700; color: var(--ink); }
+  em { font-style: normal; background: linear-gradient(transparent 62%, var(--add-bg) 62%); padding: 0 1px; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: 0.875em;
+    background: var(--code-bg);
+    padding: 2px 5px;
+    border-radius: 2px;
+    border: 1px solid var(--rule-soft);
+    word-break: break-word;
+  }
+
+  /* ---------- 端末ブロック ---------- */
+  .term {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    overflow-x: auto;
+    margin: 0;
+  }
+  .term-label {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: 9px 16px 0;
+  }
+  .term pre {
+    margin: 0;
+    padding: 8px 16px 16px;
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--ink);
+    white-space: pre;
+  }
+  .term pre .c { color: var(--ink-3); }
+  .term pre .g { color: var(--add); }
+  .term pre .r { color: var(--del); }
+  .term pre .a { color: var(--accent); }
+
+  /* ---------- 所見枠 ---------- */
+  .note {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .note-label {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .note p, .note ul { margin: 0; }
+  .note.warn { border-color: var(--stamp); background: var(--del-bg); }
+  .note.warn .note-label { color: var(--stamp); }
+  .note.good { border-color: var(--add); background: var(--add-bg); }
+  .note.good .note-label { color: var(--add); }
+
+  /* ---------- 表 ---------- */
+  .tw { overflow-x: auto; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 460px; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 0.85em; }
+  .yes { color: var(--add); font-weight: 700; }
+  .no  { color: var(--del); font-weight: 700; }
+
+  /* ---------- 手順（本物の順序があるものだけ） ---------- */
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+  .steps > li {
+    display: grid;
+    grid-template-columns: 2.7em 1fr;
+    gap: 0 14px;
+    padding: 22px 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .steps > li:first-child { border-top: none; padding-top: 4px; }
+  .steps .sn {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--paper);
+    background: var(--accent);
+    width: 2em;
+    height: 2em;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-variant-numeric: tabular-nums;
+    margin-top: 3px;
+  }
+  .steps .sc { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .steps .sc > h4 { margin: 0; font-size: 16px; }
+  .steps .sc > p { margin: 0; }
+
+  /* ---------- 図 ---------- */
+  figure { margin: 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 12px;
+    padding-left: 12px;
+    border-left: 2px solid var(--rule);
+  }
+  .figwrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--panel); padding: 24px 20px; }
+
+  /* ---------- 用語 ---------- */
+  .glossary { display: flex; flex-direction: column; gap: 0; }
+  .glossary > div { padding: 15px 0; border-top: 1px solid var(--rule-soft); display: grid; gap: 4px; }
+  .glossary > div:first-child { border-top: none; }
+  .glossary dt { font-family: var(--f-mono); font-size: 13.5px; color: var(--accent); font-weight: 600; }
+  .glossary dd { margin: 0; font-size: 15px; color: var(--ink-2); }
+  .glossary .ja { font-family: var(--f-body); font-size: 12.5px; color: var(--ink-3); }
+
+  /* ---------- 締め ---------- */
+  .colophon {
+    margin-top: 60px;
+    padding-top: 28px;
+    border-top: 2px solid var(--ink);
+    font-size: 13.5px;
+    color: var(--ink-3);
+    max-width: var(--measure);
+  }
+  @media (min-width: 1000px) { .colophon { margin-left: 3.2em; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">記録と保管の手引き</p>
+    <h1>Gitは、ファイルのカルテである</h1>
+    <p class="standfirst">
+      「公開されるのは困る。でも消えるのはもっと困る」——
+      その両方を満たす仕組みが Git と GitHub です。エンジニアでない人が最初につまずく順に並べ、
+      導入から日々の運用、AIへの頼み方までを一本にまとめました。
+    </p>
+    <div class="masthead-meta">
+      <span><b>対象</b>　プログラマではないが、PCに大事なファイルがある人</span>
+      <span><b>前提知識</b>　不要</span>
+      <span><b>読了</b>　20分</span>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="目次">
+    <details open>
+      <summary>目次を開く</summary>
+      <p class="toc-title">目次</p>
+      <ol>
+        <li><a href="#c1"><span class="n">01</span><span>コミットはバックアップではない</span></a></li>
+        <li><a href="#c2"><span class="n">02</span><span>GitとGitHubは別物</span></a></li>
+        <li><a href="#c3"><span class="n">03</span><span>公開されないための設定</span></a></li>
+        <li><a href="#c4"><span class="n">04</span><span>覚える動作は4つだけ</span></a></li>
+        <li><a href="#ct"><span class="n">05</span><span>いつコミットし、いつ push するか</span></a></li>
+        <li><a href="#c5"><span class="n">06</span><span>ブランチ＝作業の分身</span></a></li>
+        <li><a href="#c6"><span class="n">07</span><span>統合と、衝突</span></a></li>
+        <li><a href="#c7"><span class="n">08</span><span>PRとは何か</span></a></li>
+        <li><a href="#c8"><span class="n">09</span><span>入れてはいけないもの</span></a></li>
+        <li><a href="#c9"><span class="n">10</span><span>導入手順（ゼロから初回保管まで）</span></a></li>
+        <li><a href="#c10"><span class="n">11</span><span>AIと相談しながら進める</span></a></li>
+        <li><a href="#c11"><span class="n">12</span><span>詰まったときの対処</span></a></li>
+        <li><a href="#c12"><span class="n">13</span><span>週次ルーティン</span></a></li>
+        <li><a href="#c13"><span class="n">14</span><span>用語辞典</span></a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <main>
+
+    <!-- ============ 01 ============ -->
+    <section class="chapter" id="c1">
+      <div class="ch-head">
+        <span class="ch-num">01</span>
+        <h2>コミットはバックアップではない</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          最初に、一番損をしやすい誤解から潰します。Gitを使い始めた人の多くが
+          「コミットした＝保存された＝安心」と考えます。<strong>これは違います。</strong>
+        </p>
+        <p>
+          コミットで記録が書き込まれる先は、作業しているフォルダの中にある
+          <code>.git</code> という隠しフォルダです。つまり<em>同じPCの、同じディスク</em>。
+        </p>
+
+        <div class="term">
+          <div class="term-label">保管場所</div>
+<pre>作業中のファイル   C:\Users\あなた\プロジェクト\
+履歴（.git）       C:\Users\あなた\プロジェクト\<span class="a">.git\</span>   <span class="c">← ここに記録が溜まる</span>
+                                              <span class="c">   同じフォルダ・同じディスク</span></pre>
+        </div>
+
+        <p>だから、コミットが守ってくれる範囲はここまでです。</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>起きたこと</th><th>コミットだけの状態</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>ファイルを間違えて消した</td><td><span class="yes">助かる</span>　履歴から復元できる</td></tr>
+              <tr><td>変な編集をして壊した</td><td><span class="yes">助かる</span>　前の時点に戻せる</td></tr>
+              <tr><td>「3日前はどう書いてた？」</td><td><span class="yes">わかる</span>　全部残っている</td></tr>
+              <tr><td>SSDが物理的に壊れた</td><td><span class="no">全滅</span>　履歴も一緒に消える</td></tr>
+              <tr><td>PCを落とした・盗まれた</td><td><span class="no">全滅</span>　履歴も一緒に消える</td></tr>
+              <tr><td>ランサムウェアで暗号化された</td><td><span class="no">全滅</span>　履歴も暗号化される</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="note-label">所見</span>
+          <p>
+            コミットが効くのは<strong>自分の操作ミス</strong>だけです。ハードウェアの故障には無力です。
+            バックアップの原則は「<strong>別の物体に置く</strong>」——
+            同じディスクの中に何個コピーを作っても、それはバックアップとは呼びません。
+          </p>
+        </div>
+
+        <p>
+          外部に置いて初めてバックアップになります。その「外部」の代表がGitHubで、
+          送る動作が <code>push</code> です。ここが次章の話につながります。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 02 ============ -->
+    <section class="chapter" id="c2">
+      <div class="ch-head">
+        <span class="ch-num">02</span>
+        <h2>GitとGitHubは別物</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          名前が似ているせいで、ほぼ全員がここを混同します。そして
+          「Gitを使う＝ネットに公開される」と誤解して、手を出さなくなります。
+        </p>
+
+        <h3>Git ＝ PCの中だけで動く、記録装置</h3>
+        <p>
+          ネットに一切つながっていません。どれだけコミットしても、外には出ません。
+          電源を抜いた状態でも動きます。<strong>Gitは通信しないソフトです。</strong>
+        </p>
+
+        <h3>GitHub ＝ そのコピーを預けるクラウド倉庫</h3>
+        <p>
+          Microsoftが運営するサービスです。Gitの履歴を丸ごと預かってくれます。
+          <strong>ここに送って初めてネット上に置かれます。</strong>
+          そして送るとき、<em>誰に見せるかを選べます</em>。
+        </p>
+
+        <div class="figwrap">
+          <figure>
+            <svg viewBox="0 0 640 210" role="img" aria-label="コミットはPC内に留まり、プッシュで初めてGitHubに送られることを示す図">
+              <rect x="12" y="26" width="272" height="158" fill="none" stroke="var(--rule)" stroke-width="1"/>
+              <text x="26" y="50" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)" letter-spacing="1.4">あなたのPC</text>
+              <rect x="34" y="66" width="228" height="40" fill="var(--paper)" stroke="var(--rule)"/>
+              <text x="48" y="91" font-family="var(--f-body)" font-size="13.5" fill="var(--ink)">作業中のファイル</text>
+              <rect x="34" y="118" width="228" height="40" fill="var(--paper)" stroke="var(--accent)"/>
+              <text x="48" y="143" font-family="var(--f-body)" font-size="13.5" fill="var(--accent)">.git ＝ 履歴</text>
+              <text x="128" y="112" font-family="var(--f-mono)" font-size="10.5" fill="var(--ink-3)">commit</text>
+              <path d="M110 108 L110 116" stroke="var(--accent)" stroke-width="1.4"/>
+              <path d="M110 118 l-3.4 -5 l6.8 0 z" fill="var(--accent)"/>
+
+              <path d="M292 138 L392 138" stroke="var(--accent)" stroke-width="1.6"/>
+              <path d="M396 138 l-7 -4.2 l0 8.4 z" fill="var(--accent)"/>
+              <text x="300" y="130" font-family="var(--f-mono)" font-size="11.5" fill="var(--accent)" letter-spacing="0.6">push</text>
+              <text x="300" y="158" font-family="var(--f-body)" font-size="11.5" fill="var(--ink-3)">ここで初めて外に出る</text>
+
+              <rect x="404" y="26" width="224" height="158" fill="none" stroke="var(--rule)" stroke-width="1"/>
+              <text x="418" y="50" font-family="var(--f-mono)" font-size="11" fill="var(--ink-3)" letter-spacing="1.4">GitHub（別の場所）</text>
+              <rect x="426" y="118" width="180" height="40" fill="var(--paper)" stroke="var(--accent)"/>
+              <text x="440" y="143" font-family="var(--f-body)" font-size="13.5" fill="var(--accent)">.git のコピー</text>
+              <text x="426" y="92" font-family="var(--f-body)" font-size="12.5" fill="var(--ink-2)">🔒 private なら</text>
+              <text x="426" y="110" font-family="var(--f-body)" font-size="12.5" fill="var(--ink-2)">　　自分しか見えない</text>
+            </svg>
+            <figcaption>
+              コミットは何度しても左の箱から出ない。右へ渡す動作が push。
+              「外部に保管される」と「公開される」は別のことで、後者は設定で決まる。
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="note good">
+          <span class="note-label">結論</span>
+          <p>
+            <strong>「公開は嫌、でも保存したい」＝ private リポジトリに push する。</strong>
+            これで両立します。矛盾しません。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 03 ============ -->
+    <section class="chapter" id="c3">
+      <div class="ch-head">
+        <span class="ch-num">03</span>
+        <h2>公開されないための設定</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          GitHubに置く保管庫を<strong>リポジトリ</strong>と呼びます。1プロジェクト＝1リポジトリです。
+          作るときに公開設定を選びます。
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>設定</th><th>誰が見られるか</th><th>使いどころ</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>private</strong> 🔒</td>
+                <td>自分と、招待した人だけ</td>
+                <td>仕事・原稿・商品・個人の資産。<strong>迷ったらこちら</strong></td>
+              </tr>
+              <tr>
+                <td><strong>public</strong> 🌐</td>
+                <td>全世界。検索にも出る</td>
+                <td>公開したいWebページ、配布したいツール</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>private はどこまで見られないか</h3>
+        <ul>
+          <li>検索エンジンに出ません。URLを知っていても他人はアクセスできません（404が返ります）</li>
+          <li>見られるのは自分のアカウントと、自分が招待した人だけです</li>
+          <li><strong>無料アカウントでも private は無制限に作れます</strong></li>
+        </ul>
+
+        <div class="note">
+          <span class="note-label">補足</span>
+          <p>
+            「privateは有料」という情報が今も出回っていますが、これは2019年より前の話です。
+            現在は無料で無制限に作れます。古い記事を読んで諦める必要はありません。
+          </p>
+        </div>
+
+        <div class="note warn">
+          <span class="note-label">やってはいけない</span>
+          <p>
+            <strong>一度 public にしたものを private に戻しても、公開中に誰かがコピーした分は取り消せません。</strong>
+            public への切り替えは、内容を全部確認してからにしてください。
+            通常は「最初から private で作り、ずっと private のまま」で問題ありません。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 04 ============ -->
+    <section class="chapter" id="c4">
+      <div class="ch-head">
+        <span class="ch-num">04</span>
+        <h2>覚える動作は4つだけ</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          Gitのコマンドは百個以上ありますが、日常で使うのは4つです。
+          残りは困ったときにAIに聞けば足ります。
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>動作</th><th>意味</th><th>たとえると</th><th>公開？</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>git add</code></td>
+                <td>記録する対象を選ぶ</td>
+                <td>カルテに書く項目を選ぶ</td>
+                <td><span class="no">されない</span></td>
+              </tr>
+              <tr>
+                <td><code>git commit</code></td>
+                <td>「この時点」を刻む</td>
+                <td>日付を入れて署名する</td>
+                <td><span class="no">されない</span></td>
+              </tr>
+              <tr>
+                <td><code>git push</code></td>
+                <td>GitHubへ送る＝<strong>保管完了</strong></td>
+                <td>控えを外部倉庫に預ける</td>
+                <td>privateなら<span class="no">されない</span></td>
+              </tr>
+              <tr>
+                <td><code>git pull</code></td>
+                <td>GitHubから取り込む</td>
+                <td>倉庫の最新版を持ち帰る</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          もう1つ、コマンドではありませんが最も使うのが <code>git status</code> です。
+          「今どうなってる？」を確認するだけで、何も変更しません。<strong>迷ったらこれを打つ</strong>と覚えてください。
+        </p>
+
+        <div class="term">
+          <div class="term-label">日々の流れ</div>
+<pre><span class="a">git status</span>          <span class="c"># 今どうなってる？（何も変えない・安全）</span>
+<span class="a">git add -A</span>          <span class="c"># 変更を全部、記録対象にする</span>
+<span class="a">git commit -m "何をしたか"</span>
+<span class="a">git push</span>            <span class="c"># ← ここまでやって初めてバックアップ</span></pre>
+        </div>
+
+        <div class="note">
+          <span class="note-label">所見</span>
+          <p>
+            <code>add</code> と <code>commit</code> はセットで1つの動作だと考えて構いません。
+            初心者が意識すべき境界は<strong>「commitまで」と「pushした」の間</strong>です。
+            ここが、消えるか残るかの分かれ目です。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 05 いつコミット・push するか ============ -->
+    <section class="chapter" id="ct">
+      <div class="ch-head">
+        <span class="ch-num">05</span>
+        <h2>いつコミットし、いつ push するか</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          コマンドを覚えても、次に必ず詰まるのがここです。
+          「どのタイミングで、どのくらいの粒度でやればいいのか」——
+          教科書に書いていないので、自己流のまま溜め込んでしまいます。
+        </p>
+
+        <h3>コミットの基準は、たった一つ</h3>
+
+        <div class="note good">
+          <span class="note-label">判断基準</span>
+          <p>
+            <strong>「ここまで戻れたら嬉しい」と思った瞬間にコミットする。</strong>
+            <br>
+            これだけです。完成している必要も、きれいである必要もありません。
+            <em>戻りたくなる可能性のある地点に、しおりを挟む</em>——それがコミットです。
+          </p>
+        </div>
+
+        <p>
+          「まだ途中だからコミットしない」は逆です。<strong>途中だからこそ挟んでおく。</strong>
+          この後の変更で壊しても、しおりの地点に戻れます。
+        </p>
+
+        <h3>コミットする具体的なタイミング</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>場面</th><th>コミット</th><th>なぜ</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1つの作業が区切りまで進んだ</td>
+                <td><span class="yes">する</span></td>
+                <td>記事を1本書き終えた、ナレッジを5件足した、設定を変えて動いた</td>
+              </tr>
+              <tr>
+                <td>これから大きく書き換える</td>
+                <td><span class="yes">直前にする</span></td>
+                <td>壊す前に安全地帯を作っておく。<strong>最も効くタイミング</strong></td>
+              </tr>
+              <tr>
+                <td>AIに大きな作業を頼む前</td>
+                <td><span class="yes">する</span></td>
+                <td>結果が気に入らなければ、丸ごと戻せる状態にしておく</td>
+              </tr>
+              <tr>
+                <td>試行錯誤がうまくいった</td>
+                <td><span class="yes">すぐする</span></td>
+                <td>「さっきの方が良かった」を後から取り返せる</td>
+              </tr>
+              <tr>
+                <td>今日の作業を終える</td>
+                <td><span class="yes">する</span></td>
+                <td>中途半端でも構わない。翌日の自分への引き継ぎになる</td>
+              </tr>
+              <tr>
+                <td>1文字だけ直した</td>
+                <td>まとめてよい</td>
+                <td>刻みすぎても害はないが、意味の単位で束ねる方が後で読みやすい</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="note-label">粒度の目安</span>
+          <p>
+            <strong>「このコミットは何をしたか」を一言で言えるなら、粒度は正しい</strong>です。
+            「あれとこれと、あと……」となったら大きすぎます。
+            とはいえ大きすぎて壊れるものではないので、迷ったら<em>そのままコミットして進んで構いません</em>。
+          </p>
+        </div>
+
+        <h3>コミットメッセージは、未来の自分への手紙</h3>
+        <p>
+          <code>-m</code> の後に書く一言です。読むのは半年後の自分だけなので、
+          <strong>形式にこだわる必要はありません。</strong>ただし中身は要ります。
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th></th><th>例</th><th>評価</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="no">避ける</span></td>
+                <td><code>update</code>　<code>修正</code>　<code>aaa</code>　<code>作業</code></td>
+                <td>半年後の自分が何も思い出せない</td>
+              </tr>
+              <tr>
+                <td><span class="yes">よい</span></td>
+                <td><code>腰痛記事の導入を書き直し</code></td>
+                <td>何をしたかが1行でわかる</td>
+              </tr>
+              <tr>
+                <td><span class="yes">よい</span></td>
+                <td><code>介護観察GPTに事例5件追加</code></td>
+                <td>対象と量が具体的</td>
+              </tr>
+              <tr>
+                <td><span class="yes">さらによい</span></td>
+                <td><code>算定表の集計式を修正（13単位の上限が効いていなかった）</code></td>
+                <td><strong>なぜ</strong>が書いてある。理由はコードから読み取れない</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          コツは<em>「何を」より「なぜ」を書く</em>ことです。何をしたかは記録から読み取れますが、
+          なぜそうしたかは書いておかないと永久に失われます。
+        </p>
+
+        <h3>push のタイミング</h3>
+        <p>
+          コミットと違い、push は<strong>「安全な場所に移す」動作</strong>なので、基準が変わります。
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>タイミング</th><th>優先度</th><th>理由</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>その日の作業を終えたとき</td>
+                <td><strong>原則</strong></td>
+                <td>失っても1日分で済む。これが基本形</td>
+              </tr>
+              <tr>
+                <td>最低でも週に1回</td>
+                <td><strong>下限</strong></td>
+                <td>これを超えて溜めると、確認も復旧も重くなる</td>
+              </tr>
+              <tr>
+                <td>PCを持ち出す前・出かける前</td>
+                <td><strong>必須</strong></td>
+                <td>紛失・盗難・破損が現実に起きうる瞬間</td>
+              </tr>
+              <tr>
+                <td>大きな作業に取りかかる前</td>
+                <td><strong>必須</strong></td>
+                <td>手元が壊れても、外部に無傷の控えが残る</td>
+              </tr>
+              <tr>
+                <td>別のPCで続きをやりたいとき</td>
+                <td>必須</td>
+                <td>push しないと、もう一方のPCから取り出せない</td>
+              </tr>
+              <tr>
+                <td>1時間おき</td>
+                <td>不要</td>
+                <td>やっても害はないが、そこまでの頻度は要らない</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note warn">
+          <span class="note-label">溜めることの危険</span>
+          <p>
+            push を溜めると、失うものが増えるだけではありません。
+            <strong>いざ送るときに「中身を覚えていない」状態になります。</strong>
+            機密が混ざっていないか確認しようにも、100件を超えると現実的に見きれません。
+            <em>こまめに送るのは、安全確認を可能にするためでもあります。</em>
+          </p>
+        </div>
+
+        <h3>1日の流れに落とすと</h3>
+
+        <div class="term">
+          <div class="term-label">典型的な1日</div>
+<pre><span class="c">朝  作業を始める前</span>
+git pull                          <span class="c"># 別の場所での変更を取り込む</span>
+
+<span class="c">昼  記事を1本書き終えた</span>
+git add -A
+git commit -m "腰痛記事の第2稿を執筆"
+
+<span class="c">昼  大きな書き換えに入る前</span>
+git commit -m "構成変更前の状態"    <span class="c"># ← 安全地帯を作る</span>
+
+<span class="c">夜  作業終了</span>
+git add -A
+git commit -m "構成を3幕に変更・CTAを差し替え"
+git push                          <span class="c"># ← ここでバックアップ完了</span></pre>
+        </div>
+
+        <div class="note good">
+          <span class="note-label">迷ったときの原則</span>
+          <p>
+            <strong>コミットも push も、多すぎることによる害はありません。</strong>
+            少なすぎることだけが害になります。
+            <em>迷ったらやる</em>——それで間違いになる場面は、実質ありません。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 06 ============ -->
+    <section class="chapter" id="c5">
+      <div class="ch-head">
+        <span class="ch-num">06</span>
+        <h2>ブランチ＝作業の分身</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          本の執筆で考えてください。原稿があって「第3章を大きく書き直したい。でも失敗したら元に戻したい」。
+          そういうとき、原稿をコピーして<strong>別冊</strong>で書き直しますよね。それがブランチです。
+        </p>
+
+        <div class="term">
+          <div class="term-label">構造</div>
+<pre>main（本編）──●──●──●──●──●     <span class="c">← いつでも読める完成版</span>
+                    │
+                    └──●──●       <span class="c">← 別冊。ここで実験する</span></pre>
+        </div>
+
+        <p>
+          うまくいったら本編に取り込む。これが<strong>統合（merge）</strong>。
+          失敗したら別冊ごと捨てる。本編は無傷です。
+        </p>
+
+        <h3>なぜAIツールが勝手にブランチを作るのか</h3>
+        <p>
+          Claude CodeやCodexに作業を頼むと、<code>claude/なんとか</code> のような名前のブランチが
+          増えていることがあります。あれは<strong>「本編を汚さないよう別冊を作った」</strong>結果です。
+          勝手に増えているように見えて、実は安全のための動作です。
+        </p>
+
+        <div class="note">
+          <span class="note-label">覚え方</span>
+          <p>
+            <code>main</code>（またはmaster）は<strong>本編</strong>。それ以外は全部<strong>別冊</strong>です。
+            今どの冊にいるかは <code>git status</code> の1行目でわかります。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 06 ============ -->
+    <section class="chapter" id="c6">
+      <div class="ch-head">
+        <span class="ch-num">07</span>
+        <h2>統合と、衝突</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          別冊を本編に取り込む操作が <code>merge</code>（マージ・統合）です。
+          <strong>どちらも消えません。両方の変更が残ります。</strong>
+        </p>
+
+        <h3>枝分かれは、こうして起きる</h3>
+        <p>
+          初心者が最初に遭遇する事故がこれです。原因はほぼ1パターンに決まっています。
+        </p>
+
+        <div class="figwrap">
+          <figure>
+            <svg viewBox="0 0 640 190" role="img" aria-label="分岐点から二方向に分かれた履歴を示す図">
+              <circle cx="60" cy="95" r="6" fill="var(--accent)"/>
+              <text x="42" y="126" font-family="var(--f-mono)" font-size="10.5" fill="var(--ink-3)">分岐点</text>
+
+              <path d="M66 91 C 130 60, 170 50, 250 50" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <circle cx="250" cy="50" r="5.5" fill="var(--paper)" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <circle cx="330" cy="50" r="5.5" fill="var(--paper)" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <path d="M256 50 L324 50" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <text x="352" y="42" font-family="var(--f-body)" font-size="13" fill="var(--ink)">PCで作業した2件</text>
+              <text x="352" y="62" font-family="var(--f-body)" font-size="11.5" fill="var(--del)">push していない</text>
+
+              <path d="M66 99 C 130 130, 170 140, 250 140" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <circle cx="250" cy="140" r="5.5" fill="var(--paper)" stroke="var(--ink-2)" stroke-width="1.5"/>
+              <text x="352" y="134" font-family="var(--f-body)" font-size="13" fill="var(--ink)">ブラウザでPRをマージ</text>
+              <text x="352" y="154" font-family="var(--f-body)" font-size="11.5" fill="var(--del)">PCに取り込んでいない</text>
+            </svg>
+            <figcaption>
+              PCとGitHubが別々の未来を歩き始めた状態。Gitは勝手にどちらかを選ばず、
+              「両方とも正しい。人間が決めてくれ」と待つ。
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="note warn">
+          <span class="note-label">原因</span>
+          <p>
+            <strong>PCで作業 → pushせず放置 → ブラウザでPRの「Merge」を押した。</strong>
+            片方だけが進むと、必ず枝分かれします。
+            防ぎ方は1つ、<em>ブラウザでマージしたら当日中に <code>git pull</code></em> です。
+          </p>
+        </div>
+
+        <h3>コンフリクト（衝突）とは</h3>
+        <p>
+          統合で唯一やっかいなのがこれです。<strong>同じファイルの同じ行を、両側が別々に書き換えている</strong>とき、
+          Gitは「どちらを採用すべきかわからない」と止まります。
+        </p>
+        <p>
+          逆に言えば、<em>触ったファイルが重なっていなければ衝突しません</em>。
+          別のフォルダで作業していた場合などは、Gitが自動で全部やってくれます。
+        </p>
+
+        <h4>統合する前に、必ず予行演習する</h4>
+        <p>
+          衝突するかどうかは、実行前に調べられます。作業中のファイルに一切触らずに試せるコマンドがあります。
+        </p>
+
+        <div class="term">
+          <div class="term-label">予行演習（作業ツリーを変更しない）</div>
+<pre>git merge-tree --write-tree <span class="a">今のブランチ</span> <span class="a">取り込みたいブランチ</span>
+
+<span class="c"># 終了コード 0 → 衝突なし。安心して統合できる</span>
+<span class="c"># 終了コード 1 → 衝突あり。件数と場所が表示される</span></pre>
+        </div>
+
+        <p>
+          これを知らないと「やってみないとわからない」と身構えることになります。
+          <strong>統合の可否は、実行前に判定できる</strong>と覚えておいてください。
+        </p>
+
+        <h4>もし衝突したら</h4>
+        <p>
+          慌てなくて大丈夫です。<code>git merge --abort</code> で<strong>完全に元通り</strong>になります。
+          統合は「足す」操作なので、失敗しても引き返せます。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 07 ============ -->
+    <section class="chapter" id="c7">
+      <div class="ch-head">
+        <span class="ch-num">08</span>
+        <h2>PRとは何か</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          <strong>PR（プルリクエスト）＝「この別冊を本編に取り込んでいいですか？」という申請書</strong>です。
+        </p>
+        <p>
+          <code>merge</code> はコマンド一発で即座に統合します。
+          PRは、その統合の<strong>手前に確認の場を挟む</strong>仕組みです。
+        </p>
+
+        <div class="term">
+          <div class="term-label">流れ</div>
+<pre>別冊ブランチで作業
+      ↓
+PRを出す      <span class="c">「こう変えました。取り込んでいいですか？」</span>
+      ↓
+<span class="a">［ 確認の場 ］</span>  <span class="c">変更点が1行ずつ色分けで見える</span>
+              <span class="c">コメントを書ける／レビューできる</span>
+              <span class="c">テストが自動で走る</span>
+      ↓
+「Merge」ボタンを押す
+      ↓
+本編（main）に統合される</pre>
+        </div>
+
+        <p>
+          つまり <strong>PR ＝ merge ＋ 確認画面 ＋ 記録</strong> です。
+          番号（<code>#1</code>, <code>#2</code>）が振られ、議論が永久に保存されます。
+        </p>
+
+        <h3>一人で使う意味はあるか</h3>
+        <p>
+          本来はチーム開発の道具です。「勝手に本編を書き換えられたら困る」ので他の人が目を通す。
+          ただし一人でも無意味ではありません。変更点を落ち着いて見返せて、
+          <strong>「なぜこの変更をしたか」が記録として残ります。</strong>
+        </p>
+
+        <div class="note warn">
+          <span class="note-label">落とし穴</span>
+          <p>
+            <strong>PRを開いたまま放置すると、内容ではなく前提が古くなります。</strong>
+            2週間放置したPRが、その間に別の整理と食い違って49件の衝突を起こす——
+            といったことが普通に起きます。
+            PRは<em>出したら数日以内に処理する</em>。無理なら閉じて、必要になったら作り直す方が速いです。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 08 ============ -->
+    <section class="chapter" id="c8">
+      <div class="ch-head">
+        <span class="ch-num">09</span>
+        <h2>入れてはいけないもの</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          ここは医療・介護の仕事をしている人にとって、技術的な話より重要です。
+        </p>
+
+        <h3>絶対に入れないもの</h3>
+        <ul>
+          <li><strong>患者を特定できる情報</strong>（氏名・カルテ番号・生年月日と紐づく記録・写真）</li>
+          <li><strong>APIキー・トークン・パスワード</strong>（<code>.env</code> ファイルなど）</li>
+          <li>個人が特定できる第三者の情報全般</li>
+        </ul>
+
+        <div class="note warn">
+          <span class="note-label">最重要</span>
+          <p>
+            <strong>一度コミットしたものは、あとでファイルを消しても履歴に残ります。</strong>
+            「間違えて入れた → 削除した」では消えません。private であっても、倉庫の中には残り続けます。
+            <em>入れる前に止めるのが、唯一の確実な対策です。</em>
+          </p>
+        </div>
+
+        <h3>.gitignore ——「これは記録しない」リスト</h3>
+        <p>
+          プロジェクトの一番上に <code>.gitignore</code> という名前のテキストファイルを置くと、
+          そこに書いたものはGitが無視します。
+        </p>
+
+        <div class="term">
+          <div class="term-label">.gitignore の例</div>
+<pre><span class="c"># 認証情報</span>
+.env
+.env.*
+
+<span class="c"># 個人情報を含む出力</span>
+output/patients/
+<span class="c"># 自動生成物・巨大ファイル</span>
+node_modules/
+*.log
+*.tmp
+*.sqlite</pre>
+        </div>
+
+        <div class="note warn">
+          <span class="note-label">重要な制限</span>
+          <p>
+            <strong><code>.gitignore</code> は「これから追加するファイル」にしか効きません。</strong>
+            すでにコミット済みのファイルは、あとから書き足しても除外されません。
+            <br><br>
+            今後の記録だけ止めたい場合は <code>git rm --cached ファイル名</code> を使います。
+            <em>PCのファイル自体は消えません</em>が、過去の履歴にはやはり残ります。
+          </p>
+        </div>
+
+        <div class="note good">
+          <span class="note-label">だから</span>
+          <p>
+            <strong>最初のコミットの前に <code>.gitignore</code> を作ってください。</strong>
+            順番を逆にすると、あとから取り返すのが非常に面倒になります。
+            これが導入時に一番効く一手です。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 09 ============ -->
+    <section class="chapter" id="c9">
+      <div class="ch-head">
+        <span class="ch-num">10</span>
+        <h2>導入手順（ゼロから初回保管まで）</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          Windowsを前提に、実際に手を動かす順に並べます。全部で30分ほどです。
+          <strong>1つずつ、AIに聞きながらで構いません</strong>（頼み方は次章）。
+        </p>
+
+        <ol class="steps">
+          <li>
+            <span class="sn">1</span>
+            <div class="sc">
+              <h4>Gitをインストールする</h4>
+              <p>
+                <a href="https://git-scm.com/download/win" target="_blank" rel="noopener">git-scm.com</a>
+                からWindows版をダウンロードして実行します。
+                選択肢がたくさん出ますが、<strong>全部そのまま「Next」で問題ありません</strong>。
+              </p>
+              <p>終わったらPowerShellを開いて確認します。</p>
+              <div class="term">
+                <div class="term-label">確認</div>
+<pre>git --version
+<span class="c"># git version 2.xx.x のように出れば成功</span></pre>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">2</span>
+            <div class="sc">
+              <h4>名前とメールアドレスを登録する</h4>
+              <p>
+                誰が記録したかを残すための設定です。1回だけやれば以降ずっと有効です。
+                <strong>このメールアドレスはコミットに埋め込まれます</strong>ので、
+                public なリポジトリを作る予定があるなら公開して問題ないものにしてください。
+              </p>
+              <div class="term">
+                <div class="term-label">初回のみ</div>
+<pre>git config --global user.name "あなたの名前"
+git config --global user.email "あなたのメール"</pre>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">3</span>
+            <div class="sc">
+              <h4>GitHubのアカウントを作る</h4>
+              <p>
+                <a href="https://github.com/signup" target="_blank" rel="noopener">github.com</a> で作成します。無料で構いません。
+                <strong>二段階認証（2FA）は必ず有効にしてください</strong>——
+                大事な資産の保管庫になるためです。
+              </p>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">4</span>
+            <div class="sc">
+              <h4>GitHub CLI を入れて、ログインする</h4>
+              <p>
+                認証はGitの初心者が最もつまずく箇所です。
+                <strong>GitHub CLI（<code>gh</code>）を使うと、この面倒を丸ごと回避できます。</strong>
+                ブラウザが開いてログインするだけで済みます。
+              </p>
+              <div class="term">
+                <div class="term-label">PowerShell</div>
+<pre>winget install --id GitHub.cli
+
+<span class="c"># インストール後、PowerShellを開き直してから</span>
+gh auth login
+<span class="c"># → GitHub.com / HTTPS / Login with a web browser を選ぶ</span></pre>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">5</span>
+            <div class="sc">
+              <h4>.gitignore を先に作る</h4>
+              <p>
+                <strong>この順番が肝心です。</strong>コミットより前に作ります。
+                保管したいフォルダの直下に、<code>.gitignore</code> という名前で作ってください。
+                中身は第9章の例をそのまま使えます。
+              </p>
+              <p>
+                何を除外すべきか迷ったら、この時点でAIに<em>「このフォルダを見て、
+                .gitignore に入れるべきものを挙げて」</em>と頼むのが確実です。
+              </p>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">6</span>
+            <div class="sc">
+              <h4>記録を開始する</h4>
+              <p>保管したいフォルダで、Gitの管理を始めます。</p>
+              <div class="term">
+                <div class="term-label">プロジェクトのフォルダで</div>
+<pre>cd C:\Users\あなた\プロジェクト
+
+git init                     <span class="c"># このフォルダの記録を開始</span>
+git add -A                   <span class="c"># 全部を記録対象に</span>
+git commit -m "最初の記録"</pre>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">7</span>
+            <div class="sc">
+              <h4>GitHubに private の倉庫を作って、送る</h4>
+              <p>
+                <code>gh</code> を入れてあれば、<strong>倉庫の作成とpushが1行で終わります</strong>。
+                <code>--private</code> を必ず付けてください。
+              </p>
+              <div class="term">
+                <div class="term-label">作成と初回push</div>
+<pre>gh repo create <span class="a">好きな名前</span> <span class="a">--private</span> --source=. --remote=origin --push</pre>
+              </div>
+              <div class="note good">
+                <span class="note-label">確認</span>
+                <p>
+                  最後に必ず、本当に private になっているか自分の目で見てください。
+                </p>
+                <div class="term">
+                  <div class="term-label">検証</div>
+<pre>gh repo view --json isPrivate,visibility
+<span class="c"># {"isPrivate":true,"visibility":"PRIVATE"} なら成功</span></pre>
+                </div>
+              </div>
+            </div>
+          </li>
+
+          <li>
+            <span class="sn">8</span>
+            <div class="sc">
+              <h4>2回目以降は、3行だけ</h4>
+              <p>ここまで来れば、日々やることはこれだけです。</p>
+              <div class="term">
+                <div class="term-label">日常</div>
+<pre>git add -A
+git commit -m "何をしたか一言"
+git push</pre>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section class="chapter" id="c10">
+      <div class="ch-head">
+        <span class="ch-num">11</span>
+        <h2>AIと相談しながら進める</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          Gitはコマンドを覚えるより、<strong>「何が起きているか」を読み取る力</strong>の方が重要です。
+          そこはAIが得意な領域なので、任せてしまって構いません。
+          ただし<em>任せ方に線引きがあります</em>。
+        </p>
+
+        <h3>まず、この一言から始める</h3>
+        <p>
+          Claude Code のようにファイルを読めるAIなら、状況を自分で調べてくれます。
+          <strong>コマンドを教えてもらうのではなく、状況を説明してもらう</strong>のが正しい使い方です。
+        </p>
+
+        <div class="term">
+          <div class="term-label">頼み方の型</div>
+<pre>「今のGitの状態を調べて、初心者にわかるように説明して。
+　まだ何も実行しないで。」</pre>
+        </div>
+
+        <p>
+          <strong>「まだ実行しないで」を付けるのがコツです。</strong>
+          先に説明させ、内容を理解してから実行を頼む。この2段階にすると事故がほぼなくなります。
+        </p>
+
+        <h3>場面別の頼み方</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>やりたいこと</th><th>そのまま使える依頼文</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>バックアップしたい</td>
+                <td>「バックアップして。<strong>機密情報が混ざっていないか先に確認して</strong>、結果を見せてから進めて」</td>
+              </tr>
+              <tr>
+                <td>導入したい</td>
+                <td>「このフォルダをGitで管理したい。<strong>.gitignore に入れるべきものを先に挙げて</strong>」</td>
+              </tr>
+              <tr>
+                <td>エラーが出た</td>
+                <td>「このエラーの意味と、なぜ起きたかを説明して。<strong>対処は提案だけして、実行しないで</strong>」</td>
+              </tr>
+              <tr>
+                <td>操作が怖い</td>
+                <td>「この操作は<strong>取り消せる？ 取り消せない？</strong> 先に教えて」</td>
+              </tr>
+              <tr>
+                <td>散らかってきた</td>
+                <td>「ブランチの状況を整理して見せて。<strong>どれが使われていて、どれが放置か</strong>」</td>
+              </tr>
+              <tr>
+                <td>統合したい</td>
+                <td>「統合したい。<strong>先に予行演習して衝突件数を出して</strong>から判断させて」</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>AIに任せてよい／確認すべき の線引き</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>種類</th><th>例</th><th>判断</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>読むだけ</td>
+                <td><code>status</code> <code>log</code> <code>diff</code> <code>merge-tree</code></td>
+                <td><span class="yes">任せてよい</span>　何も変わらない</td>
+              </tr>
+              <tr>
+                <td>足すだけ</td>
+                <td><code>add</code> <code>commit</code> <code>merge</code></td>
+                <td><span class="yes">任せてよい</span>　引き返せる</td>
+              </tr>
+              <tr>
+                <td>外部に出す</td>
+                <td><code>push</code> PRの作成・コメント</td>
+                <td>内容を<strong>見てから</strong>承認する</td>
+              </tr>
+              <tr>
+                <td>書き換える</td>
+                <td><code>rebase</code> <code>--force</code> <code>reset --hard</code> <code>clean -fd</code></td>
+                <td><span class="no">必ず止める</span>　説明を求める</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note warn">
+          <span class="note-label">この4語が出たら手を止める</span>
+          <p>
+            <code>--force</code>　<code>reset --hard</code>　<code>clean -fd</code>　<code>filter-repo</code>
+            <br><br>
+            これらは<strong>記録そのものを消したり書き換えたりします</strong>。
+            AIが提案してきたら、実行する前に<em>「なぜそれが必要か、他に方法はないか」</em>と聞き返してください。
+            大抵は、もっと安全な代替手段があります。
+          </p>
+        </div>
+
+        <h3>仕組みで防ぐ</h3>
+        <p>
+          Claude Code を使っているなら、<strong>危険なコマンドを実行前にブロックする設定</strong>を入れられます。
+          人間の注意力に頼らずに済むので、導入をおすすめします。
+        </p>
+        <div class="term">
+          <div class="term-label">Claude Code で</div>
+<pre>/git-guardrails-claude-code</pre>
+        </div>
+        <p>
+          <code>push</code> や <code>reset --hard</code> などを、実行される前に止めるフックを設定してくれます。
+        </p>
+
+        <div class="note good">
+          <span class="note-label">大前提</span>
+          <p>
+            <strong>Gitで本当に失われるものは、ほとんどありません。</strong>
+            一度コミットしてさえいれば、大抵の失敗は復元できます。
+            <em>怖いのは「コミットしていない変更」と「上のリストの4語」だけ</em>です。
+            この2つを避けている限り、思い切って触って構いません。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 11 ============ -->
+    <section class="chapter" id="c11">
+      <div class="ch-head">
+        <span class="ch-num">12</span>
+        <h2>詰まったときの対処</h2>
+      </div>
+      <div class="ch-body">
+        <p>初心者が遭遇する順に並べます。どれも<strong>壊れてはいません</strong>。</p>
+
+        <h3>「rejected」と言われて push できない</h3>
+        <p>
+          <strong>GitHub側に、自分が持っていない変更があります。</strong>第7章の枝分かれです。
+          <code>git pull</code> で取り込んでから、もう一度 push してください。
+        </p>
+        <div class="note warn">
+          <span class="note-label">やってはいけない</span>
+          <p>
+            ここで <code>git push --force</code> を使うと<strong>GitHub側の変更が消えます</strong>。
+            検索するとこの解決策が出てきますが、初心者は使わないでください。
+          </p>
+        </div>
+
+        <h3>コンフリクトが出て止まった</h3>
+        <p>
+          <code>git merge --abort</code> で完全に元に戻せます。落ち着いてから、
+          AIに<em>「衝突の内容を説明して。どちらを残すべきか判断材料をください」</em>と頼んでください。
+        </p>
+
+        <h3>間違ったファイルをコミットしてしまった</h3>
+        <p>
+          <strong>まだ push していなければ</strong>、比較的簡単に取り消せます。
+          <em>push する前に気づくこと</em>が分かれ目なので、機密が関わるものは
+          コミット前に <code>git status</code> で一覧を確認する習慣をつけてください。
+        </p>
+
+        <h3>ファイルが消えた気がする</h3>
+        <p>
+          一度でもコミットしていれば、まず残っています。
+          AIに<em>「このファイルの履歴を調べて、最後に存在したコミットを教えて」</em>と頼めば見つかります。
+        </p>
+
+        <h3>ブランチが増えすぎてわからない</h3>
+        <p>
+          放っておいても害はありません。整理したくなったら
+          <em>「使われていないブランチを一覧にして。それぞれ最終更新日と、統合済みかどうかも」</em>
+          と頼んでください。<strong>削除は、確認してから一つずつ</strong>で構いません。
+        </p>
+
+        <h3>2.2GBもある。重すぎないか</h3>
+        <p>
+          <code>.git</code> フォルダが大きいのは、履歴を全部持っているからです。異常ではありません。
+          ただし<strong>100MBを超えるファイルはGitHubが受け付けません</strong>。
+          動画や大きなデータは <code>.gitignore</code> で除外し、別の方法で保管してください。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 12 ============ -->
+    <section class="chapter" id="c12">
+      <div class="ch-head">
+        <span class="ch-num">13</span>
+        <h2>週次ルーティン</h2>
+      </div>
+      <div class="ch-body">
+        <p>
+          最後に、これだけ守れば十分という運用をまとめます。
+          <strong>理想は週1回</strong>。溜めるほど確認が重くなります。
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>タイミング</th><th>やること</th><th>理由</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>週に1回</td>
+                <td><code>git status</code> を見て、溜まっていたら commit → push</td>
+                <td>1週間分なら中身を覚えている。確認できる</td>
+              </tr>
+              <tr>
+                <td>ブラウザでPRをマージした日</td>
+                <td>その日のうちに <code>git pull</code></td>
+                <td><strong>枝分かれを防ぐ唯一の対策</strong></td>
+              </tr>
+              <tr>
+                <td>新しいファイルを置いたとき</td>
+                <td>機密が含まれないか確認してから commit</td>
+                <td>履歴からは消せないため</td>
+              </tr>
+              <tr>
+                <td>PRを出したとき</td>
+                <td>数日以内に処理する。無理なら閉じる</td>
+                <td>放置すると前提が古くなる</td>
+              </tr>
+              <tr>
+                <td>月に1回</td>
+                <td>リポジトリが private のままか確認</td>
+                <td>設定は事故で変わりうる</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note good">
+          <span class="note-label">最小構成</span>
+          <p>
+            全部覚えられなくても、<strong>この1つだけ</strong>習慣にしてください。
+          </p>
+          <div class="term">
+            <div class="term-label">週に1回、これを打つ</div>
+<pre>git status</pre>
+          </div>
+          <p>
+            何も変えないので、いつ打っても安全です。
+            出力の意味がわからなければ、そのままAIに貼り付けて
+            <em>「これはどういう状態？ どうすべき？」</em>と聞けば済みます。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 13 ============ -->
+    <section class="chapter" id="c13">
+      <div class="ch-head">
+        <span class="ch-num">14</span>
+        <h2>用語辞典</h2>
+      </div>
+      <div class="ch-body">
+        <dl class="glossary">
+          <div>
+            <dt>repository / repo</dt>
+            <dd><span class="ja">リポジトリ</span>　1つのプロジェクトの保管庫。フォルダ1つ＝リポジトリ1つ。</dd>
+          </div>
+          <div>
+            <dt>commit</dt>
+            <dd><span class="ja">コミット</span>　「この時点」の記録。PC内に刻まれる。まだ外には出ていない。</dd>
+          </div>
+          <div>
+            <dt>push / pull</dt>
+            <dd><span class="ja">プッシュ／プル</span>　GitHubへ送る／GitHubから取り込む。方向が逆なだけ。</dd>
+          </div>
+          <div>
+            <dt>branch</dt>
+            <dd><span class="ja">ブランチ</span>　作業の分身。本編を汚さずに実験するための別冊。</dd>
+          </div>
+          <div>
+            <dt>main / master</dt>
+            <dd><span class="ja">メイン</span>　本編にあたるブランチの名前。masterは古い呼び方で、意味は同じ。</dd>
+          </div>
+          <div>
+            <dt>merge</dt>
+            <dd><span class="ja">マージ・統合</span>　別冊を本編に取り込む。両方の変更が残る。</dd>
+          </div>
+          <div>
+            <dt>conflict</dt>
+            <dd><span class="ja">コンフリクト・衝突</span>　同じ行を両側が書き換えていて、Gitが判断できない状態。<code>--abort</code> で戻せる。</dd>
+          </div>
+          <div>
+            <dt>pull request / PR</dt>
+            <dd><span class="ja">プルリクエスト</span>　「取り込んでいいですか」の申請書。merge＋確認画面＋記録。</dd>
+          </div>
+          <div>
+            <dt>origin</dt>
+            <dd><span class="ja">オリジン</span>　送り先のGitHubリポジトリに付けられた既定の呼び名。「向こう側」の意味。</dd>
+          </div>
+          <div>
+            <dt>clone</dt>
+            <dd><span class="ja">クローン</span>　GitHubにある倉庫を、まるごとPCに持ってくること。別のPCで作業を続けるときに使う。</dd>
+          </div>
+          <div>
+            <dt>.gitignore</dt>
+            <dd><span class="ja">ギットイグノア</span>　記録しないものの一覧。<strong>これから追加するファイルにしか効かない。</strong></dd>
+          </div>
+          <div>
+            <dt>staging</dt>
+            <dd><span class="ja">ステージング</span>　<code>add</code> して commit を待っている状態。「記録対象に選ばれた」段階。</dd>
+          </div>
+          <div>
+            <dt>HEAD</dt>
+            <dd><span class="ja">ヘッド</span>　今いる場所を指す印。「現在開いているページ」のようなもの。</dd>
+          </div>
+          <div>
+            <dt>hash（<code>8d365e7</code> のような文字列）</dt>
+            <dd><span class="ja">ハッシュ</span>　コミット1件ごとの固有ID。日付と役割はカルテの受付番号に近い。</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <div class="colophon">
+      <p>
+        Gitは「消さずに積む」道具です。カルテと同じで、書き足すことはできても、
+        書いたことをなかったことにはできません。
+        だからこそ<strong>入れる前に確認する</strong>——それさえ守れば、
+        あとは失敗しても取り返せます。
+      </p>
+      <p style="margin-top:1.2em">
+        勉強会で使う場合は <a href="slides.html">スライド版（全32枚）</a> があります。
+      </p>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // 目次の現在地表示 —— 長い文書なので、今どこを読んでいるかを示す
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var map = {};
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      map[id] = a;
+    });
+    var sections = Array.prototype.slice.call(document.querySelectorAll('section.chapter'));
+    if (!('IntersectionObserver' in window) || !sections.length) return;
+
+    var visible = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        visible[e.target.id] = e.isIntersecting;
+      });
+      var current = null;
+      for (var i = 0; i < sections.length; i++) {
+        if (visible[sections[i].id]) { current = sections[i].id; break; }
+      }
+      links.forEach(function (a) { a.classList.remove('on'); });
+      if (current && map[current]) map[current].classList.add('on');
+    }, { rootMargin: '-8% 0px -70% 0px', threshold: 0 });
+
+    sections.forEach(function (s) { io.observe(s); });
+  })();
+</script>
+
+</body>
+</html>

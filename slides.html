@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gitは、AIにやらせる — 勉強会スライド</title>
+<meta name="description" content="医療・介護職向けのGit入門スライド全32枚。コマンドを覚えず、AIに日本語で頼んで済ませる構成。矢印キーでめくれます。">
+
+<!-- SNS・LINEに貼ったときのカード表示用。
+     公開先が決まったら og:url を実際のURLに書き換えてください。 -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="Gitは、AIにやらせる — 勉強会スライド">
+<meta property="og:description" content="医療・介護職向けのGit入門スライド全32枚。コマンドを覚えず、AIに日本語で頼んで済ませる構成。矢印キーでめくれます。">
+<meta property="og:locale" content="ja_JP">
+<!-- <meta property="og:url" content="https://例.github.io/git-guide/"> -->
+<meta name="twitter:card" content="summary">
+
+<style>
+  /* 最小限のリセット（配布時は自前で持つ必要があるため） */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img, svg { max-width: 100%; }
+</style>
+</head>
+<body>
+<style>
+  :root {
+    --paper:#EDF0EF; --paper-2:#E3E8E6; --panel:#F6F8F7;
+    --ink:#16201E; --ink-2:#4A5754; --ink-3:#6F7C79;
+    --rule:#C9D2CF; --rule-soft:#DBE2E0;
+    --accent:#0E5F56; --accent-2:#0A4740;
+    --add:#2E6B43; --add-bg:#E2EDE5;
+    --del:#9B3226; --del-bg:#F3E3E0;
+    --stamp:#B0442F; --code-bg:#E7ECEA;
+    --shadow:0 1px 3px rgba(22,32,30,.07), 0 12px 40px rgba(22,32,30,.09);
+
+    --f-display:"Hiragino Mincho ProN","HiraMinProN-W3","Yu Mincho","YuMincho","Noto Serif JP",serif;
+    --f-body:"Hiragino Sans","HiraginoSans-W3","Yu Gothic","YuGothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+    --f-mono:ui-monospace,"SFMono-Regular","Cascadia Mono",Consolas,"Courier New",monospace;
+
+    /* 1単位 = ステージ幅の1%。
+       ステージ幅は「画面幅」と「高さから逆算した16:9の幅」の小さい方なので、
+       同じ式をそのまま書く。calc と min だけで完結するため、
+       コンテナクエリ等の対応状況に左右されない。 */
+    --base: calc(min(100vw - 4vmin, (100vh - 4vmin) * 16 / 9) / 100);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#121817; --paper-2:#0D1211; --panel:#1A2221;
+      --ink:#E4EAE8; --ink-2:#A3B0AD; --ink-3:#7C8986;
+      --rule:#2C3836; --rule-soft:#222C2B;
+      --accent:#57B8AA; --accent-2:#7FCFC2;
+      --add:#74C08D; --add-bg:#1A2A20;
+      --del:#E08B7C; --del-bg:#2C1D1A;
+      --stamp:#E0866F; --code-bg:#1D2625;
+      --shadow:0 1px 3px rgba(0,0,0,.4), 0 14px 44px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#121817; --paper-2:#0D1211; --panel:#1A2221;
+    --ink:#E4EAE8; --ink-2:#A3B0AD; --ink-3:#7C8986;
+    --rule:#2C3836; --rule-soft:#222C2B;
+    --accent:#57B8AA; --accent-2:#7FCFC2;
+    --add:#74C08D; --add-bg:#1A2A20;
+    --del:#E08B7C; --del-bg:#2C1D1A;
+    --stamp:#E0866F; --code-bg:#1D2625;
+    --shadow:0 1px 3px rgba(0,0,0,.4), 0 14px 44px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    --paper:#EDF0EF; --paper-2:#E3E8E6; --panel:#F6F8F7;
+    --ink:#16201E; --ink-2:#4A5754; --ink-3:#6F7C79;
+    --rule:#C9D2CF; --rule-soft:#DBE2E0;
+    --accent:#0E5F56; --accent-2:#0A4740;
+    --add:#2E6B43; --add-bg:#E2EDE5;
+    --del:#9B3226; --del-bg:#F3E3E0;
+    --stamp:#B0442F; --code-bg:#E7ECEA;
+    --shadow:0 1px 3px rgba(22,32,30,.07), 0 12px 40px rgba(22,32,30,.09);
+  }
+
+  *,*::before,*::after { box-sizing:border-box; }
+
+  body {
+    margin:0; background:var(--paper-2); color:var(--ink);
+    font-family:var(--f-body); -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+  #stagewrap { position:fixed; inset:0; display:grid; place-items:center; padding:2vmin; }
+  #stage {
+    position:relative;
+    width:min(100%, calc((100vh - 4vmin) * 16 / 9));
+    aspect-ratio:16 / 9;
+    background:var(--paper);
+    box-shadow:var(--shadow);
+    /* 安全網：万一収まらなくても、隠さずスクロールで読めるようにする */
+    overflow:auto;
+  }
+
+  .slide {
+    /* 縮小はJSが --scale（ただの数値）を変えるだけ。
+       単位を持たないので、環境による対応差の影響を受けない。 */
+    --scale:1;
+    --u:calc(var(--base) * var(--scale));
+    position:absolute; inset:0;
+    padding:calc(var(--u)*5.4) calc(var(--u)*7.5) calc(var(--u)*7);
+    display:none; flex-direction:column; justify-content:center;
+    gap:calc(var(--u)*1.9);
+  }
+  .slide.on { display:flex; }
+
+  .kicker {
+    font-family:var(--f-mono); font-size:calc(var(--u)*1.28);
+    letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+  }
+  .slide h2 {
+    font-family:var(--f-display); font-weight:600;
+    font-size:calc(var(--u)*4.3); line-height:1.32; margin:0;
+    letter-spacing:.005em; text-wrap:balance;
+  }
+  .slide p { font-size:calc(var(--u)*1.92); line-height:1.68; margin:0; color:var(--ink-2); max-width:44ch; }
+  .slide p.lead { color:var(--ink); font-size:calc(var(--u)*2.25); }
+  .slide strong { color:var(--ink); font-weight:700; }
+  .slide em { font-style:normal; background:linear-gradient(transparent 62%, var(--add-bg) 62%); padding:0 .1em; }
+  .accent { color:var(--accent); }
+  .yes { color:var(--add); font-weight:700; }
+  .no  { color:var(--del); font-weight:700; }
+
+  ul.b { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:calc(var(--u)*1.2); }
+  ul.b > li {
+    font-size:calc(var(--u)*1.92); line-height:1.58; color:var(--ink-2);
+    padding-left:calc(var(--u)*2.5); position:relative;
+  }
+  ul.b > li::before {
+    content:""; position:absolute; left:0; top:calc(var(--u)*.98);
+    width:calc(var(--u)*1.25); height:1.5px; background:var(--accent);
+  }
+
+  code {
+    font-family:var(--f-mono); font-size:.88em; background:var(--code-bg);
+    border:1px solid var(--rule-soft); padding:.08em .3em; border-radius:2px;
+  }
+
+  .term {
+    background:var(--panel); border:1px solid var(--rule);
+    border-left:calc(var(--u)*.32) solid var(--accent);
+    padding:calc(var(--u)*1.7) calc(var(--u)*2); overflow-x:auto;
+  }
+  .term pre {
+    margin:0; font-family:var(--f-mono); font-size:calc(var(--u)*1.58);
+    line-height:1.8; color:var(--ink); white-space:pre-wrap; word-break:break-word;
+  }
+  .term.say pre { font-family:var(--f-body); font-size:calc(var(--u)*1.95); line-height:1.7; }
+  .term pre .c { color:var(--ink-3); }
+  .term pre .a { color:var(--accent); }
+  .term pre .r { color:var(--del); }
+
+  .huge {
+    background:var(--panel); border:1px solid var(--accent);
+    padding:calc(var(--u)*2.6) calc(var(--u)*2.6);
+    font-family:var(--f-mono); font-size:calc(var(--u)*4.2);
+    color:var(--accent); text-align:center; letter-spacing:.02em;
+  }
+
+  .note {
+    border:1px solid var(--accent); background:var(--panel);
+    padding:calc(var(--u)*1.8) calc(var(--u)*2.2);
+    display:flex; flex-direction:column; gap:calc(var(--u)*.8);
+  }
+  .note .nl {
+    font-family:var(--f-mono); font-size:calc(var(--u)*1.2);
+    letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+  }
+  .note p { max-width:none; }
+  .note.warn { border-color:var(--stamp); background:var(--del-bg); }
+  .note.warn .nl { color:var(--stamp); }
+  .note.good { border-color:var(--add); background:var(--add-bg); }
+  .note.good .nl { color:var(--add); }
+
+  table { border-collapse:collapse; width:100%; font-size:calc(var(--u)*1.66); }
+  th,td { padding:calc(var(--u)*.95) calc(var(--u)*1.2); text-align:left; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+  thead th {
+    font-family:var(--f-mono); font-size:calc(var(--u)*1.2); letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:500;
+    background:var(--panel); border-bottom:1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom:none; }
+  .tw { border:1px solid var(--rule); }
+
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:calc(var(--u)*2.6); align-items:start; }
+  .cols.n3 { grid-template-columns:repeat(3,1fr); }
+  .card {
+    border:1px solid var(--rule); background:var(--panel);
+    padding:calc(var(--u)*1.8) calc(var(--u)*2);
+    display:flex; flex-direction:column; gap:calc(var(--u)*.8); height:100%;
+  }
+  .card .ct { font-family:var(--f-mono); font-size:calc(var(--u)*1.24); letter-spacing:.12em; text-transform:uppercase; color:var(--accent); }
+  .card p { font-size:calc(var(--u)*1.66); max-width:none; }
+
+  .slide.part { justify-content:center; gap:calc(var(--u)*2.4); }
+  .slide.part .pn { font-family:var(--f-mono); font-size:calc(var(--u)*1.45); letter-spacing:.2em; color:var(--accent); }
+  .slide.part h2 { font-size:calc(var(--u)*5.6); max-width:20ch; }
+  .slide.part p { font-size:calc(var(--u)*2); }
+
+  .slide.cover { justify-content:center; gap:calc(var(--u)*2.4); }
+  .slide.cover h1 {
+    font-family:var(--f-display); font-weight:600;
+    font-size:calc(var(--u)*6.6); line-height:1.24; margin:0; max-width:18ch; text-wrap:balance;
+  }
+  .slide.cover .sub { font-size:calc(var(--u)*2.1); color:var(--ink-2); max-width:42ch; }
+  .slide.cover .meta {
+    font-family:var(--f-mono); font-size:calc(var(--u)*1.4); color:var(--ink-3);
+    letter-spacing:.04em; display:flex; gap:calc(var(--u)*3); flex-wrap:wrap; margin-top:calc(var(--u)*1.2);
+  }
+
+  .foot {
+    position:absolute; left:calc(var(--u)*7.5); right:calc(var(--u)*7.5); bottom:calc(var(--u)*3);
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--f-mono); font-size:calc(var(--u)*1.2); color:var(--ink-3);
+    letter-spacing:.08em; border-top:1px solid var(--rule-soft);
+    padding-top:calc(var(--u)*1); pointer-events:none;
+  }
+  .slide.cover .foot, .slide.part .foot { border-top-color:transparent; }
+
+  #bar { position:sticky; left:0; bottom:0; height:2px; background:var(--accent); width:0; transition:width .22s ease; z-index:5; }
+
+  #ctrl { position:fixed; right:2vmin; bottom:2vmin; display:flex; gap:6px; z-index:20; }
+  #ctrl button {
+    font-family:var(--f-mono); font-size:12px; background:var(--paper); color:var(--ink-2);
+    border:1px solid var(--rule); padding:7px 11px; cursor:pointer; line-height:1;
+  }
+  #ctrl button:hover { color:var(--accent); border-color:var(--accent); }
+
+  #hint {
+    position:fixed; left:2vmin; bottom:2vmin; font-family:var(--f-mono);
+    font-size:11.5px; color:var(--ink-3); letter-spacing:.05em; z-index:20; transition:opacity .4s;
+  }
+  #hint.fade { opacity:0; }
+
+  #grid {
+    position:fixed; inset:0; background:var(--paper-2); z-index:40; overflow-y:auto;
+    padding:26px; display:none; grid-template-columns:repeat(auto-fill,minmax(178px,1fr));
+    gap:14px; align-content:start;
+  }
+  #grid.on { display:grid; }
+  #grid .gi {
+    border:1px solid var(--rule); background:var(--paper); padding:13px 14px; cursor:pointer;
+    display:flex; flex-direction:column; gap:7px; min-height:88px; text-align:left; font-family:inherit;
+  }
+  #grid .gi:hover { border-color:var(--accent); }
+  #grid .gi .gn { font-family:var(--f-mono); font-size:10.5px; color:var(--accent); letter-spacing:.1em; }
+  #grid .gi .gt { font-size:13px; color:var(--ink); line-height:1.45; font-family:var(--f-body); }
+  #grid .gi.cur { border-color:var(--accent); border-width:2px; }
+
+  @media (max-width:820px) {
+    /* 携帯はステージが画面幅いっぱい・高さ可変になるので、基準もそれに合わせる */
+    :root { --base:1vw; }
+    body { overflow:auto; }
+    #stagewrap { position:static; padding:0; display:block; }
+    #stage { width:100%; aspect-ratio:auto; min-height:100svh; box-shadow:none; overflow:visible; }
+    .slide { position:relative; inset:auto; min-height:100svh; padding:58px 24px 74px; }
+    #bar { position:fixed; }
+    #hint { display:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div id="stagewrap">
+  <div id="stage">
+
+    <!-- 1 -->
+    <section class="slide cover" data-title="表紙">
+      <p class="kicker">医療・介護職のための勉強会</p>
+      <h1>Gitは、AIにやらせる</h1>
+      <p class="sub">大事なファイルを、公開せずに、消えないようにする。<br>覚えるのは「何を頼むか」だけです。</p>
+      <div class="meta"><span>30分</span><span>前提知識 不要</span><span><a href="index.html" style="color:var(--accent)">詳しい手引き →</a></span></div>
+      <div class="foot"><span></span><span>01</span></div>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" data-title="今日の結論">
+      <p class="kicker">先に結論</p>
+      <h2>3つだけ、持ち帰ってください</h2>
+      <ul class="b">
+        <li><strong>公開されません。</strong>非公開のまま保管できます</li>
+        <li><strong>PCが壊れても消えません。</strong>別の場所に控えが残ります</li>
+        <li><strong>自分では、ほぼ何も打ちません。</strong>AIに日本語で頼むだけ</li>
+      </ul>
+      <div class="foot"><span>はじめに</span><span>02</span></div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" data-title="心当たりの確認">
+      <p class="kicker">まず、心当たりの確認</p>
+      <h2>フォルダが、こうなっていませんか</h2>
+      <div class="term">
+        <pre>資料_最終.docx
+資料_最終_修正.docx
+資料_最終_これで完成.docx
+資料_最終_これで完成（本当）.docx</pre>
+      </div>
+      <p>どれが最新か分からない。前に戻したいが、どれか分からない。</p>
+      <div class="foot"><span>はじめに</span><span>03</span></div>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" data-title="失うとどうなるか">
+      <p class="kicker">起きてからでは遅い</p>
+      <h2>PCが壊れたら、何が消えますか</h2>
+      <div class="cols n3">
+        <div class="card"><span class="ct">資料</span><p>マニュアル、指導箋、スライド。作り直しに何十時間</p></div>
+        <div class="card"><span class="ct">記録</span><p>Excelの管理表と集計式。組み直せるとは限らない</p></div>
+        <div class="card"><span class="ct">積み上げ</span><p>何年もかけた知識。これは戻ってこない</p></div>
+      </div>
+      <div class="foot"><span>はじめに</span><span>04</span></div>
+    </section>
+
+    <!-- 5 部1 -->
+    <section class="slide part" data-title="第1部 これは何か">
+      <p class="pn">第 1 部</p>
+      <h2>これは何か</h2>
+      <p>4枚で終わります</p>
+      <div class="foot"><span></span><span>05</span></div>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide" data-title="ファイルのカルテ">
+      <p class="kicker">Gitとは</p>
+      <h2>ファイルの、カルテです</h2>
+      <ul class="b">
+        <li>変更するたびに、日付つきで記録が積まれます</li>
+        <li>消さずに<strong>書き足していく</strong>だけ</li>
+        <li>「3日前はどう書いてた？」が全部わかります</li>
+      </ul>
+      <div class="foot"><span>第1部 これは何か</span><span>06</span></div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" data-title="公開されない">
+      <p class="kicker">いちばん多い誤解</p>
+      <h2>Gitを使っても、公開されません</h2>
+      <p class="lead">Gitは<strong>ネットにつながっていないソフト</strong>です。</p>
+      <p>電源を抜いても動きます。どれだけ記録しても、PCの外には出ません。</p>
+      <div class="foot"><span>第1部 これは何か</span><span>07</span></div>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" data-title="預けて初めて守られる">
+      <p class="kicker">ここだけ、大事</p>
+      <h2>「預ける」まではPCの中だけ</h2>
+      <div class="tw">
+        <table>
+          <tbody>
+            <tr><td>記録する</td><td>PCの中に刻まれる</td><td><span class="no">壊れたら消える</span></td></tr>
+            <tr><td><strong>預ける</strong></td><td><strong>GitHubへ送る</strong></td><td><span class="yes">壊れても残る</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>記録しただけでは守られません。<em>預けて初めてバックアップです。</em></p>
+      <div class="foot"><span>第1部 これは何か</span><span>08</span></div>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide" data-title="非公開で預ける">
+      <p class="kicker">預け先の設定</p>
+      <h2>非公開（private）を選ぶだけ</h2>
+      <ul class="b">
+        <li>他人はURLを知っていても<strong>見られません</strong></li>
+        <li>検索にも出ません</li>
+        <li><strong>無料です。</strong>個数の制限もありません</li>
+      </ul>
+      <div class="foot"><span>第1部 これは何か</span><span>09</span></div>
+    </section>
+
+    <!-- 10 部2 -->
+    <section class="slide part" data-title="第2部 AIに任せる">
+      <p class="pn">第 2 部</p>
+      <h2>AIに任せる</h2>
+      <p>ここが今日の本題です</p>
+      <div class="foot"><span></span><span>10</span></div>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide" data-title="自分でやるのは2つだけ">
+      <p class="kicker">人間がやる必要があるもの</p>
+      <h2>最初に、2つだけ</h2>
+      <ul class="b">
+        <li><strong>Gitを入れる</strong>　<code>git-scm.com</code> から。選択肢は全部そのままでOK</li>
+        <li><strong>GitHubに登録する</strong>　<code>github.com</code> で。無料</li>
+      </ul>
+      <p class="lead"><em>これ以降は、全部AIに頼めます。</em></p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>11</span></div>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide" data-title="打つのはこれ1つ">
+      <p class="kicker">覚えるコマンド</p>
+      <h2>打つのは、これ1つだけ</h2>
+      <div class="huge">git status</div>
+      <p><strong>何も変えません。</strong>いつ打っても安全です。<br>出た文字の意味が分からなければ、<em>そのままAIに貼って聞けば済みます。</em></p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>12</span></div>
+    </section>
+
+    <!-- 13 -->
+    <section class="slide" data-title="あとは日本語で頼む">
+      <p class="kicker">残りは全部</p>
+      <h2>日本語で、頼むだけ</h2>
+      <p class="lead">コマンドを教わろうとしないでください。<br><strong>やってほしいことを、そのまま言えば済みます。</strong></p>
+      <p>次の4枚が、そのまま使える依頼文です。</p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>13</span></div>
+    </section>
+
+    <!-- 14 -->
+    <section class="slide" data-title="依頼文：はじめる">
+      <p class="kicker">依頼文 その1 — はじめる</p>
+      <h2>このフォルダを守りたい</h2>
+      <div class="term say">
+        <pre>このフォルダをGitで管理して、GitHubに<span class="a">非公開</span>で保管したい。
+
+入れてはいけないファイルが無いか<span class="a">先に確認して</span>、
+一覧を見せてから進めて。</pre>
+      </div>
+      <div class="foot"><span>第2部 AIに任せる</span><span>14</span></div>
+    </section>
+
+    <!-- 15 -->
+    <section class="slide" data-title="依頼文：バックアップ">
+      <p class="kicker">依頼文 その2 — 保管する</p>
+      <h2>今日の分を預けたい</h2>
+      <div class="term say">
+        <pre>バックアップして。
+
+患者情報やパスワードが混ざっていないか<span class="a">先に確認して</span>、
+結果を見せてから送って。</pre>
+      </div>
+      <div class="foot"><span>第2部 AIに任せる</span><span>15</span></div>
+    </section>
+
+    <!-- 16 -->
+    <section class="slide" data-title="依頼文：困った">
+      <p class="kicker">依頼文 その3 — 困った</p>
+      <h2>何か出た。どうしよう</h2>
+      <div class="term say">
+        <pre>この画面の意味を、初心者にわかるように説明して。
+
+対処は<span class="a">提案だけ</span>して、まだ実行しないで。</pre>
+      </div>
+      <div class="foot"><span>第2部 AIに任せる</span><span>16</span></div>
+    </section>
+
+    <!-- 17 -->
+    <section class="slide" data-title="依頼文：不安">
+      <p class="kicker">依頼文 その4 — 不安なとき</p>
+      <h2>これ、やって大丈夫？</h2>
+      <div class="term say">
+        <pre>その操作は<span class="a">取り消せる？ 取り消せない？</span>
+
+取り消せないなら、他の方法も教えて。</pre>
+      </div>
+      <div class="foot"><span>第2部 AIに任せる</span><span>17</span></div>
+    </section>
+
+    <!-- 18 -->
+    <section class="slide" data-title="魔法の一言">
+      <p class="kicker">全部に共通する、たった一言</p>
+      <h2>「まだ実行しないで」を付ける</h2>
+      <div class="note good">
+        <span class="nl">これだけで事故が消える</span>
+        <p class="lead">先に説明させる → 理解する → それから実行を頼む。<br><strong>この2段階にするだけです。</strong></p>
+      </div>
+      <div class="foot"><span>第2部 AIに任せる</span><span>18</span></div>
+    </section>
+
+    <!-- 19 -->
+    <section class="slide" data-title="任せる線引き">
+      <p class="kicker">どこまで任せるか</p>
+      <h2>止めるのは、1種類だけ</h2>
+      <div class="tw">
+        <table>
+          <tbody>
+            <tr><td>状況を調べる</td><td><span class="yes">任せてよい</span></td></tr>
+            <tr><td>記録する・預ける</td><td><span class="yes">任せてよい</span></td></tr>
+            <tr><td><strong>記録を消す・書き換える</strong></td><td><span class="no">必ず止める</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>迷ったら「<em>これは取り消せる？</em>」と聞けば判別できます。</p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>19</span></div>
+    </section>
+
+    <!-- 20 -->
+    <section class="slide" data-title="危ない4語">
+      <p class="kicker">この文字が見えたら手を止める</p>
+      <h2>危ないのは、この4つ</h2>
+      <div class="term">
+        <pre><span class="r">--force</span>        <span class="r">reset --hard</span>
+<span class="r">clean -fd</span>      <span class="r">filter-repo</span></pre>
+      </div>
+      <p>記録そのものを消します。<strong>「なぜ必要か、他に方法はないか」と聞き返してください。</strong></p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>20</span></div>
+    </section>
+
+    <!-- 21 -->
+    <section class="slide" data-title="知らない言葉が出たら">
+      <p class="kicker">ブランチ・マージ・プルリクエスト</p>
+      <h2>知らない言葉は、覚えなくていい</h2>
+      <p class="lead">全部<strong>AIがやってくれる作業の名前</strong>です。</p>
+      <p>意味が気になったときだけ、<em>「これ何？ 私は何かする必要ある？」</em>と聞けば十分です。<br>今日は覚えなくて構いません。</p>
+      <div class="foot"><span>第2部 AIに任せる</span><span>21</span></div>
+    </section>
+
+    <!-- 22 部3 -->
+    <section class="slide part" data-title="第3部 いつやるか">
+      <p class="pn">第 3 部</p>
+      <h2>いつやるか</h2>
+      <p>頼むタイミングだけ決めておく</p>
+      <div class="foot"><span></span><span>22</span></div>
+    </section>
+
+    <!-- 23 -->
+    <section class="slide" data-title="記録の基準">
+      <p class="kicker">記録するタイミング</p>
+      <h2>基準は、たった一つ</h2>
+      <div class="note good">
+        <span class="nl">これだけ</span>
+        <p class="lead"><strong>「ここまで戻れたら嬉しい」と思った瞬間。</strong></p>
+      </div>
+      <p>完成していなくて構いません。<em>戻りたくなる地点に、しおりを挟む</em>感覚です。</p>
+      <div class="foot"><span>第3部 いつやるか</span><span>23</span></div>
+    </section>
+
+    <!-- 24 -->
+    <section class="slide" data-title="特に効く3場面">
+      <p class="kicker">とくに効く場面</p>
+      <h2>この3つの「直前」に頼む</h2>
+      <ul class="b">
+        <li><strong>大きく書き換える前</strong>　壊す前に安全地帯を作る</li>
+        <li><strong>AIに大きな作業を頼む前</strong>　気に入らなければ丸ごと戻せる</li>
+        <li><strong>その日の作業を終えるとき</strong>　中途半端でもよい</li>
+      </ul>
+      <div class="foot"><span>第3部 いつやるか</span><span>24</span></div>
+    </section>
+
+    <!-- 25 -->
+    <section class="slide" data-title="預けるタイミング">
+      <p class="kicker">預けるタイミング</p>
+      <h2>いつ「保管して」と言うか</h2>
+      <div class="tw">
+        <table>
+          <tbody>
+            <tr><td>その日の作業を終えたとき</td><td>原則</td></tr>
+            <tr><td>最低でも週に1回</td><td>下限</td></tr>
+            <tr><td><strong>PCを持ち出す前</strong></td><td><strong>必須</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>溜めるほど、確認も復旧も重くなります。</p>
+      <div class="foot"><span>第3部 いつやるか</span><span>25</span></div>
+    </section>
+
+    <!-- 26 部4 -->
+    <section class="slide part" data-title="第4部 事故を防ぐ">
+      <p class="pn">第 4 部</p>
+      <h2>事故を防ぐ</h2>
+      <p>医療・介護職には、ここが一番大事</p>
+      <div class="foot"><span></span><span>26</span></div>
+    </section>
+
+    <!-- 27 -->
+    <section class="slide" data-title="入れてはいけないもの">
+      <p class="kicker">絶対に入れない</p>
+      <h2>この3つは、非公開でも入れない</h2>
+      <ul class="b">
+        <li><strong>患者を特定できる情報</strong>　氏名・カルテ番号・写真</li>
+        <li><strong>パスワードやAPIキー</strong>　設定ファイルに紛れがち</li>
+        <li><strong>第三者の個人情報</strong>　同僚・利用者・家族の連絡先</li>
+      </ul>
+      <div class="foot"><span>第4部 事故を防ぐ</span><span>27</span></div>
+    </section>
+
+    <!-- 28 -->
+    <section class="slide" data-title="消せない">
+      <p class="kicker">今日いちばん重要</p>
+      <h2>一度記録したものは、消せません</h2>
+      <div class="note warn">
+        <span class="nl">最重要</span>
+        <p class="lead">「間違えて入れた → 削除した」<strong>では消えません。</strong><br>カルテと同じで、書いたことはなかったことにできません。</p>
+      </div>
+      <div class="foot"><span>第4部 事故を防ぐ</span><span>28</span></div>
+    </section>
+
+    <!-- 29 -->
+    <section class="slide" data-title="だから先に確認させる">
+      <p class="kicker">対策は1つだけ</p>
+      <h2>入れる前に、AIに確認させる</h2>
+      <div class="term say">
+        <pre>患者情報やパスワードが混ざっていないか
+<span class="a">先に確認して</span>、結果を見せてから送って。</pre>
+      </div>
+      <p>毎回この一言を付けるだけで、事故はほぼ防げます。</p>
+      <div class="foot"><span>第4部 事故を防ぐ</span><span>29</span></div>
+    </section>
+
+    <!-- 30 -->
+    <section class="slide" data-title="実は怖くない">
+      <p class="kicker">とはいえ</p>
+      <h2>失われるものは、ほとんどありません</h2>
+      <p class="lead">一度記録してさえいれば、大抵の失敗は元に戻せます。</p>
+      <p>怖いのは<strong>「まだ記録していない変更」</strong>と<strong>「危ない4語」</strong>だけ。<br><em>この2つを避けている限り、思い切って触って構いません。</em></p>
+      <div class="foot"><span>第4部 事故を防ぐ</span><span>30</span></div>
+    </section>
+
+    <!-- 31 -->
+    <section class="slide" data-title="まとめ">
+      <p class="kicker">持ち帰ること</p>
+      <h2>3つだけ</h2>
+      <ul class="b">
+        <li><strong>公開されない。</strong>非公開で預ければ、誰にも見えない</li>
+        <li><strong>預けて初めて守られる。</strong>記録しただけでは消える</li>
+        <li><strong>自分でやらない。</strong>日本語で頼み、「まだ実行しないで」を付ける</li>
+      </ul>
+      <div class="foot"><span>まとめ</span><span>31</span></div>
+    </section>
+
+    <!-- 32 -->
+    <section class="slide cover" data-title="最初の一歩">
+      <p class="kicker">今日の宿題</p>
+      <h1>これだけ打って<br>帰ってください</h1>
+      <div class="huge">git status</div>
+      <p class="sub">分からない文字が出たら、そのままAIに貼るだけです。</p>
+      <div class="foot"><span></span><span>32</span></div>
+    </section>
+
+    <div id="bar"></div>
+  </div>
+</div>
+
+<div id="hint">← → でめくる　·　O で一覧　·　F で全画面</div>
+
+<div id="ctrl">
+  <button id="bPrev" type="button" aria-label="前のスライド">←</button>
+  <button id="bNext" type="button" aria-label="次のスライド">→</button>
+  <button id="bGrid" type="button" aria-label="スライド一覧">一覧</button>
+  <button id="bFull" type="button" aria-label="全画面">全画面</button>
+</div>
+
+<div id="grid" role="dialog" aria-label="スライド一覧"></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var stage  = document.getElementById('stage');
+  var bar    = document.getElementById('bar');
+  var grid   = document.getElementById('grid');
+  var hint   = document.getElementById('hint');
+  var i = 0;
+
+  /* 文字サイズの基準は CSS の 1cqw。JSは「収まらない時に比率で縮める」だけを担当する。
+     余裕を多めに見て 0.94 を目標にする（環境差で切れないように）。 */
+  function fit(s) {
+    s.style.removeProperty('--scale');
+    if (window.matchMedia('(max-width: 820px)').matches) return;
+    var avail = stage.clientHeight;
+    if (!avail) return;
+
+    // スライドはステージいっぱいに固定されているため、そのままでは
+    // scrollHeight がステージ高より小さくならず、中身の実寸が測れない。
+    // 測定中だけ高さを内容なりにして、本当の必要高を得る。
+    var jc = s.style.justifyContent, h = s.style.height, b = s.style.bottom;
+    s.style.justifyContent = 'flex-start';
+    s.style.bottom = 'auto';
+    s.style.height = 'auto';
+
+    var target = avail * 0.99;   // 1%だけ余裕を残す
+    var k = 1;
+    for (var pass = 0; pass < 8; pass++) {
+      var need = s.scrollHeight;
+      if (need <= target) break;
+      k = k * (target / need) * 0.995;
+      s.style.setProperty('--scale', k);
+    }
+
+    s.style.justifyContent = jc;
+    s.style.height = h;
+    s.style.bottom = b;
+  }
+
+  function show(n, push) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('on', k === i); });
+    bar.style.width = (i / (slides.length - 1) * 100) + '%';
+    if (push !== false) history.replaceState(null, '', '#' + (i + 1));
+    Array.prototype.forEach.call(grid.children, function (c, k) { c.classList.toggle('cur', k === i); });
+    fit(slides[i]);
+    stage.scrollTop = 0;
+    if (window.matchMedia('(max-width: 820px)').matches) window.scrollTo(0, 0);
+  }
+  function next() { show(i + 1); }
+  function prev() { show(i - 1); }
+
+  slides.forEach(function (s, k) {
+    var b = document.createElement('button');
+    b.className = 'gi'; b.type = 'button';
+    var n = document.createElement('span'); n.className = 'gn';
+    n.textContent = String(k + 1).padStart(2, '0');
+    var t = document.createElement('span'); t.className = 'gt';
+    t.textContent = s.getAttribute('data-title') || '';
+    b.appendChild(n); b.appendChild(t);
+    b.addEventListener('click', function () { grid.classList.remove('on'); show(k); });
+    grid.appendChild(b);
+  });
+  function toggleGrid() { grid.classList.toggle('on'); }
+
+  function full() {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    } else if (document.exitFullscreen) { document.exitFullscreen(); }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+    else if (e.key === 'o' || e.key === 'O') { toggleGrid(); }
+    else if (e.key === 'f' || e.key === 'F') { full(); }
+    else if (e.key === 'Escape') { grid.classList.remove('on'); }
+  });
+
+  document.getElementById('bNext').addEventListener('click', next);
+  document.getElementById('bPrev').addEventListener('click', prev);
+  document.getElementById('bGrid').addEventListener('click', toggleGrid);
+  document.getElementById('bFull').addEventListener('click', full);
+
+  var x0 = null;
+  stage.addEventListener('touchstart', function (e) { x0 = e.changedTouches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 55) { dx < 0 ? next() : prev(); }
+    x0 = null;
+  }, { passive: true });
+
+  window.addEventListener('resize', function () { fit(slides[i]); });
+
+  var start = parseInt((location.hash || '').replace('#', ''), 10);
+  show(isNaN(start) ? 0 : start - 1, false);
+  requestAnimationFrame(function () { fit(slides[i]); });
+  window.addEventListener('load', function () { fit(slides[i]); });
+
+  setTimeout(function () { hint.classList.add('fade'); }, 5200);
+})();
+</script>
+
+</body>
+</html>
